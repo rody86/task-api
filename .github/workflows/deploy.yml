@@ -1,0 +1,56 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # Para poder descargar la imagen de GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # (Opcional) Si quisieras construir la imagen aquí, pero ya la construye el CI.
+      # Aquí asumimos que el CI ya publicó la imagen con el tag 'main'.
+      
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. Loguearse en GHCR desde la EC2 (si es privado)
+            # echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # 2. Descargar la última imagen
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+            
+            # 3. Detener y eliminar el contenedor anterior (si existe)
+            docker stop task-api || true
+            docker rm task-api || true
+            
+            # 4. Levantar el nuevo contenedor
+            # Nota: Usamos --network host para simplificar, o crea una red si usas Postgres
+            docker run -d \
+              --name task-api \
+              --restart unless-stopped \
+              -p 8080:8000 \
+              -e DATABASE_URL="postgresql://taskuser:taskpass@localhost:5432/taskdb" \
+              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
