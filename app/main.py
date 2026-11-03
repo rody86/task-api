@@ -30,3 +30,19 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
     db.commit()
+
+#Prometheus
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from . import models, schemas
+from .database import engine, get_db, Base
+from prometheus_fastapi_instrumentator import Instrumentator # <-- NUEVO
+
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Task API")
+
+# Esto crea automáticamente el endpoint /metrics
+Instrumentator().instrument(app).expose(app) # <-- NUEVO
+
+# ... el resto de tu código ...
