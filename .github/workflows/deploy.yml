@@ -52,6 +52,7 @@ jobs:
             # Nota: Usamos --network host para simplificar, o crea una red si usas Postgres
             docker run -d \
               --name task-api \
+              --network task-net \
               --restart unless-stopped \
               -p 8080:8000 \
               -e DATABASE_URL="postgresql://taskuser:taskpass@localhost:5432/taskdb" \
