@@ -46,4 +46,3 @@ app = FastAPI(title="Task API")
 Instrumentator().instrument(app).expose(app) # <-- NUEVO
 
 # ... el resto de tu código ...
-@app.get("/health")
