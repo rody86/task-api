@@ -35,25 +35,18 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          debug: true
-          timeout: 30s
           script: |
-            # 1. Loguearse en GHCR desde la EC2 (si es privado)
-            # echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # 2. Descargar la última imagen
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
-            
-            # 3. Detener y eliminar el contenedor anterior (si existe)
-            docker stop task-api || true
-            docker rm task-api || true
-            
-            # 4. Levantar el nuevo contenedor
-            # Nota: Usamos --network host para simplificar, o crea una red si usas Postgres
-            docker run -d \
-              --name task-api \
-              --network task-net \
-              --restart unless-stopped \
-              -p 8080:8000 \
-              -e DATABASE_URL="postgresql://taskuser:taskpass@db:5432/taskdb" \
-              ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+            # 1. Loguearse en GHCR para poder descargar la imagen privada
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # 2. Descargar el archivo docker-compose.yml más reciente desde tu repo de GitHub
+            curl -o docker-compose.yml https://raw.githubusercontent.com/rody86/task-api/main/docker-compose.yml
+
+            # 3. Descargar la última imagen de la API
+            docker pull ghcr.io/rody86/task-api:main
+
+            # 4. Levantar o actualizar los contenedores en segundo plano
+            docker compose up -d --remove-orphans
+
+            # 5. (Opcional) Limpiar imágenes viejas para no llenar el disco
+            docker image prune -f

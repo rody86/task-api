@@ -11,9 +11,10 @@ services:
       test: ["CMD-SHELL", "pg_isready -U taskuser -d taskdb"]
       interval: 5s
       retries: 5
+    restart: unless-stopped
 
   api:
-    build: .
+    image: ghcr.io/rody86/task-api:main
     environment:
       DATABASE_URL: postgresql://taskuser:taskpass@db:5432/taskdb
     ports:
@@ -21,6 +22,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
