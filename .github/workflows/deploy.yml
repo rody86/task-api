@@ -39,8 +39,11 @@ jobs:
             # 1. Loguearse en GHCR para poder descargar la imagen privada
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # 2. Descargar el archivo docker-compose.yml más reciente desde tu repo de GitHub
-            curl -o docker-compose.yml https://raw.githubusercontent.com/rody86/task-api/main/docker-compose.yml
+            # 2. Descargar el docker-compose.yml usando la API de GitHub (funciona con repos privados)
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o docker-compose.yml \
+                 https://api.github.com/repos/rody86/task-api/contents/docker-compose.yml
 
             # 3. Descargar la última imagen de la API
             docker pull ghcr.io/rody86/task-api:main
