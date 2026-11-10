@@ -48,9 +48,16 @@ jobs:
                  -o db.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/db.yaml
 
+            # NUEVO: Descargar el ingress
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o ingress.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/ingress.yaml
+
             # 2. Aplicar los cambios en Kubernetes
             kubectl apply -f db.yaml
             kubectl apply -f api.yaml
+            kubectl apply -f ingress.yaml
 
             # 3. Forzar la actualización de la imagen (Rolling Update)
             kubectl rollout restart deployment/task-api

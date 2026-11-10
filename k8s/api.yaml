@@ -27,10 +27,10 @@ kind: Service
 metadata:
   name: task-api
 spec:
-  type: NodePort
+#  type: NodePort
   selector:
     app: task-api
   ports:
     - port: 8080
       targetPort: 8000
-      nodePort: 30080
+#      nodePort: 30080
