@@ -1,34 +1,3 @@
-name: Deploy to EC2
-
-on:
-  push:
-    branches: [ "main" ]
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read # Para poder descargar la imagen de GHCR
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # (Opcional) Si quisieras construir la imagen aquí, pero ya la construye el CI.
-      # Aquí asumimos que el CI ya publicó la imagen con el tag 'main'.
-      
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -36,20 +5,24 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. Loguearse en GHCR para poder descargar la imagen privada
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # 2. Descargar el docker-compose.yml usando la API de GitHub (funciona con repos privados)
+            # 1. Descargar los manifiestos actualizados desde GitHub
+            # (Asegúrate de que los nombres coinciden con tu repo)
             curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                  -H "Accept: application/vnd.github.v3.raw" \
-                 -o docker-compose.yml \
-                 https://api.github.com/repos/rody86/task-api/contents/docker-compose.yml
+                 -o api.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/api.yaml
 
-            # 3. Descargar la última imagen de la API
-            docker pull ghcr.io/rody86/task-api:main
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o db.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/db.yaml
 
-            # 4. Levantar o actualizar los contenedores en segundo plano
-            docker compose up -d --remove-orphans
+            # 2. Aplicar los cambios en Kubernetes
+            kubectl apply -f db.yaml
+            kubectl apply -f api.yaml
 
-            # 5. (Opcional) Limpiar imágenes viejas para no llenar el disco
-            docker image prune -f
+            # 3. Forzar la actualización de la imagen (Rolling Update)
+            kubectl rollout restart deployment/task-api
+            
+            # 4. Esperar a que termine la actualización (opcional pero muy PRO)
+            kubectl rollout status deployment/task-api

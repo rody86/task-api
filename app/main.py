@@ -14,7 +14,7 @@ Instrumentator().instrument(app).expose(app) # <-- NUEVO
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"version": "2.0"}
 
 @app.get("/tasks", response_model=list[schemas.TaskOut])
 def list_tasks(db: Session = Depends(get_db)):

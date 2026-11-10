@@ -1,0 +1,55 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # Para poder descargar la imagen de GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # (Opcional) Si quisieras construir la imagen aquí, pero ya la construye el CI.
+      # Aquí asumimos que el CI ya publicó la imagen con el tag 'main'.
+      
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. Loguearse en GHCR para poder descargar la imagen privada
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # 2. Descargar el docker-compose.yml usando la API de GitHub (funciona con repos privados)
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o docker-compose.yml \
+                 https://api.github.com/repos/rody86/task-api/contents/docker-compose.yml
+
+            # 3. Descargar la última imagen de la API
+            docker pull ghcr.io/rody86/task-api:main
+
+            # 4. Levantar o actualizar los contenedores en segundo plano
+            docker compose up -d --remove-orphans
+
+            # 5. (Opcional) Limpiar imágenes viejas para no llenar el disco
+            docker image prune -f
