@@ -1,3 +1,34 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read # Para poder descargar la imagen de GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # (Opcional) Si quisieras construir la imagen aquí, pero ya la construye el CI.
+      # Aquí asumimos que el CI ya publicó la imagen con el tag 'main'.
+      
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -25,4 +56,4 @@
             kubectl rollout restart deployment/task-api
             
             # 4. Esperar a que termine la actualización (opcional pero muy PRO)
-            kubectl rollout status deployment/task-api
+            kubectl rollout status deployment/task-api 
