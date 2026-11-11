@@ -28,11 +28,20 @@ spec:
           image: postgres:16-alpine
           env:
             - name: POSTGRES_USER
-              value: "taskuser"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
-              value: "taskpass"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
             - name: POSTGRES_DB
-              value: "taskdb"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
           ports:
             - containerPort: 5432
           volumeMounts:
