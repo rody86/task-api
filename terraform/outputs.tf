@@ -5,5 +5,5 @@ output "instance_public_ip" {
 
 output "ssh_command" {
   description = "Command to SSH into the instance"
-  value       = "ssh -i ~/.ssh/tu-clave.pem ec2-user@${aws_instance.app_server.public_ip}"
+  value = "ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${aws_instance.app_server.public_ip}"
 }
