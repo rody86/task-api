@@ -5,6 +5,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+  
+  # NUEVO: Backend remoto
+  backend "s3" {
+    bucket         = "rody-terraform-state-2026"
+    key            = "task-api/terraform.tfstate"
+    region         = "eu-south-2"
+    dynamodb_table = "terraform-locks"
+  }
 }
 
 provider "aws" {
@@ -115,4 +123,3 @@ data "aws_ami" "amazon_linux" {
     values = ["al2023-ami-*-x86_64"]
   }
 }
-#Prueba
