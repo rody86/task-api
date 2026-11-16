@@ -1,21 +1,35 @@
 #!/bin/bash
 set -e
 
-# Actualizar sistema e instalar Docker
+# 1. Actualizar sistema e instalar Docker
 dnf update -y
 dnf install -y docker git
-
-# Arrancar Docker y habilitarlo en el boot
 systemctl start docker
 systemctl enable docker
-
-# Añadir el usuario ec2-user al grupo docker (para no usar sudo)
 usermod -aG docker ec2-user
 
-# Instalar Docker Compose plugin
-mkdir -p /usr/local/lib/docker/cli-plugins
-curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
-  -o /usr/local/lib/docker/cli-plugins/docker-compose
-chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+# 2. Instalar K3s
+curl -sfL https://get.k3s.io | sh -
 
-echo "Docker installation complete" > /var/log/user-data-done.log
+# 3. Configurar kubectl para el usuario ec2-user
+mkdir -p /home/ec2-user/.kube
+cp /etc/rancher/k3s/k3s.yaml /home/ec2-user/.kube/config
+chown -R ec2-user:ec2-user /home/ec2-user/.kube
+echo 'export KUBECONFIG=/home/ec2-user/.kube/config' >> /home/ec2-user/.bashrc
+
+# 4. Instalar ArgoCD
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 5. Esperar a que ArgoCD esté listo
+kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || true
+
+# 6. Crear el secreto de la base de datos
+kubectl create secret generic postgres-secret \
+  --from-literal=POSTGRES_USER=taskuser \
+  --from-literal=POSTGRES_PASSWORD=taskpass \
+  --from-literal=POSTGRES_DB=taskdb \
+  --from-literal=DATABASE_URL=postgresql://taskuser:taskpass@db:5432/taskdb || true
+
+echo "Instalación completada" > /var/log/user-data-done.log
