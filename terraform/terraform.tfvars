@@ -1,2 +1,2 @@
-key_name = "prueba-terraform"
-my_ip    = "148.3.219.144/32"
+key_name = "prueba-terraform.pem"
+my_ip    = "37.222.177.186/32"
