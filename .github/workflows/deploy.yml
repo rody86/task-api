@@ -63,4 +63,4 @@ jobs:
             kubectl rollout restart deployment/task-api
             
             # 4. Esperar a que termine la actualización (opcional pero muy PRO)
-            kubectl rollout status deployment/task-api 
+#            kubectl rollout status deployment/task-api 
