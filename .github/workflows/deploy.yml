@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read # Para poder descargar la imagen de GHCR
+      packages: read
 
     steps:
       - name: Checkout repository
@@ -26,9 +26,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # (Opcional) Si quisieras construir la imagen aquí, pero ya la construye el CI.
-      # Aquí asumimos que el CI ya publicó la imagen con el tag 'main'.
-      
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -39,8 +36,7 @@ jobs:
             # 1. Exportar el KUBECONFIG explícitamente
             export KUBECONFIG=/home/ec2-user/.kube/config
 
-            # 1. Descargar los manifiestos actualizados desde GitHub
-            # (Asegúrate de que los nombres coinciden con tu repo)
+            # 2. Descargar los manifiestos actualizados desde GitHub
             curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                  -H "Accept: application/vnd.github.v3.raw" \
                  -o api.yaml \
@@ -51,23 +47,21 @@ jobs:
                  -o db.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/db.yaml
 
-            # NUEVO: Descargar el ingress
             curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
                  -H "Accept: application/vnd.github.v3.raw" \
                  -o ingress.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/ingress.yaml
 
-            # Eliminar pods huérfanos antes de aplicar
+            # 3. Eliminar pods huérfanos antes de aplicar
             kubectl delete pod -l app=task-api --ignore-not-found=true
 
-            # 2. Aplicar los cambios en Kubernetes
+            # 4. Aplicar los cambios en Kubernetes
             kubectl apply -f db.yaml
             kubectl apply -f api.yaml
             kubectl apply -f ingress.yaml
 
-            # 3. Forzar la actualización de la imagen (Rolling Update)
+            # 5. Forzar la actualización de la imagen (Rolling Update)
             kubectl rollout restart deployment/task-api
             
-            # 4. Esperar a que termine la actualización (opcional pero muy PRO)
-#           kubectl rollout status deployment/task-api
+            # 6. Mensaje final (sin esperar el timeout)
             echo "Despliegue aplicado."
