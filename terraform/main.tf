@@ -111,8 +111,12 @@ resource "aws_instance" "app_server" {
   tags = {
     Name = "task-api-server"
   }
-}
 
+  root_block_device {
+    volume_size = 20 # 20 GB de disco
+    volume_type = "gp3"
+  }
+}
 # 7. Buscar la AMI más reciente de Amazon Linux 2023
 data "aws_ami" "amazon_linux" {
   most_recent = true
