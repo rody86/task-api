@@ -54,6 +54,9 @@ jobs:
                  -o ingress.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/ingress.yaml
 
+            # Eliminar pods huérfanos antes de aplicar
+            kubectl delete pod -l app=task-api --ignore-not-found=true
+
             # 2. Aplicar los cambios en Kubernetes
             kubectl apply -f db.yaml
             kubectl apply -f api.yaml
@@ -63,4 +66,4 @@ jobs:
             kubectl rollout restart deployment/task-api
             
             # 4. Esperar a que termine la actualización (opcional pero muy PRO)
-            kubectl rollout status deployment/task-api 
+#            kubectl rollout status deployment/task-api 
