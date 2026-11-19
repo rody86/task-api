@@ -1,0 +1,67 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. Exportar el KUBECONFIG explícitamente
+            export KUBECONFIG=/home/ec2-user/.kube/config
+
+            # 2. Descargar los manifiestos actualizados desde GitHub
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o api.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/api.yaml
+
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o db.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/db.yaml
+
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o ingress.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/ingress.yaml
+
+            # 3. Eliminar pods huérfanos antes de aplicar
+            kubectl delete pod -l app=task-api --ignore-not-found=true
+
+            # 4. Aplicar los cambios en Kubernetes
+            kubectl apply -f db.yaml
+            kubectl apply -f api.yaml
+            kubectl apply -f ingress.yaml
+
+            # 5. Forzar la actualización de la imagen (Rolling Update)
+            kubectl rollout restart deployment/task-api
+            
+            # 6. Mensaje final (sin esperar el timeout)
+            echo "Despliegue aplicado."

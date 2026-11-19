@@ -27,14 +27,6 @@ for i in {1..30}; do
     sleep 5
 done
 
-# 4. Crear el Secreto de la Base de Datos
-echo "Creando secretos..."
-kubectl create secret generic postgres-secret \
-  --from-literal=POSTGRES_USER=taskuser \
-  --from-literal=POSTGRES_PASSWORD=taskpass \
-  --from-literal=POSTGRES_DB=taskdb \
-  --from-literal=DATABASE_URL=postgresql://taskuser:taskpass@db:5432/taskdb
-
 # 5. Configurar permisos para ec2-user
 mkdir -p /home/ec2-user/.kube
 cp /etc/rancher/k3s/k3s.yaml /home/ec2-user/.kube/config
