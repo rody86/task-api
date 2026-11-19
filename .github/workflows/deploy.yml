@@ -59,10 +59,15 @@ jobs:
                  https://api.github.com/repos/rody86/task-api/contents/k8s/postgres-sealed-secret.yaml
 
             # 3. Eliminar pods huérfanos antes de aplicar
-            kubectl delete pod -l app=task-api --ignore-not-found=true
+            # Forzar la recreación del SealedSecret para evitar bloqueos de propiedad
+            kubectl delete sealedsecret postgres-secret --ignore-not-found=true
 
             # 4. Aplicar los cambios en Kubernetes
             kubectl apply -f postgres-sealed-secret.yaml
+
+            # Pequeña pausa para dar tiempo al controlador a descifrar
+            sleep 6 
+
             kubectl apply -f db.yaml
             kubectl apply -f api.yaml
             kubectl apply -f ingress.yaml
