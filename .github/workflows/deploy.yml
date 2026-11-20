@@ -69,6 +69,18 @@ jobs:
                  -o prometheus.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/prometheus.yaml
 
+            # Descargar el Ingress de ArgoCD
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o argocd-ingress.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/argocd-ingress.yaml
+
+            # Descargar y aplicar la App de ArgoCD
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o argocd-app.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/argocd-app.yaml
+
             # 3. Eliminar pods huérfanos antes de aplicar
             # Forzar la recreación del SealedSecret para evitar bloqueos de propiedad
             kubectl delete sealedsecret postgres-secret --ignore-not-found=true
@@ -84,6 +96,15 @@ jobs:
             kubectl apply -f ingress.yaml
             kubectl apply -f grafana.yaml
             kubectl apply -f prometheus.yaml
+            kubectl apply -f argocd-ingress.yaml
+            kubectl apply -f argocd-app.yaml
+
+            # Parchear ArgoCD para que sepa que vive en /argocd
+            kubectl patch configmap argocd-cmd-params-cm -n argocd -p '{"data": {"server.rootpath": "/argocd"}}' || true
+            kubectl patch configmap argocd-cmd-params-cm -n argocd -p '{"data": {"server.basehref": "/argocd"}}' || true
+
+            # Reiniciar ArgoCD para aplicar el parche (solo si es necesario)
+            kubectl rollout restart deployment argocd-server -n argocd
 
             # 5. Forzar la actualización de la imagen (Rolling Update)
             kubectl rollout restart deployment/task-api
