@@ -58,6 +58,17 @@ jobs:
                  -o postgres-sealed-secret.yaml \
                  https://api.github.com/repos/rody86/task-api/contents/k8s/postgres-sealed-secret.yaml
 
+            # Descargar Grafana y Prometheus
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o grafana.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/grafana.yaml
+
+            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.raw" \
+                 -o prometheus.yaml \
+                 https://api.github.com/repos/rody86/task-api/contents/k8s/prometheus.yaml
+
             # 3. Eliminar pods huérfanos antes de aplicar
             # Forzar la recreación del SealedSecret para evitar bloqueos de propiedad
             kubectl delete sealedsecret postgres-secret --ignore-not-found=true
@@ -71,6 +82,8 @@ jobs:
             kubectl apply -f db.yaml
             kubectl apply -f api.yaml
             kubectl apply -f ingress.yaml
+            kubectl apply -f grafana.yaml
+            kubectl apply -f prometheus.yaml
 
             # 5. Forzar la actualización de la imagen (Rolling Update)
             kubectl rollout restart deployment/task-api
