@@ -1,0 +1,17 @@
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  creationTimestamp: null
+  name: argocd-repo-creds
+  namespace: argocd
+spec:
+  encryptedData:
+    sshPrivateKey: AgAwevg4O3S3YZV351OUo6DmH/kTYUAH8jliLNn/nobNmafGFXTbRkZa2BsV27sZJMx+29mFTvTv4w9TqoU+0eypu6Zga+sUxNvrWxBoU5KgCXOps5qjrL6aTAt3RwlZe5WnFrP40n+TzyOO4jd5bCBNROitk7LtPPHX8hzC0D87oDo7IJjwIZ2v35+lEqOrSkD7ukFzKgL6mBOyEd8mEbQvbvOwSl8ACQevkGSPtCkaL1R4hg95a+pMgDy31pIrzPe7PxbdOEq53UqhLwpMAl8Nj+WKlwsgPQkxeZ0KLF3ymd4N6otnEItVDCFCChv5tL4KEbXK7EqBXK+tJFYCi38Dm7mgBnBPeTK8yBrzk5fEAgL2fGnICyurTaG/j0vto0JKT9fxGR7CQDQF/HtYFZrsLLgkx/ZeqKGNAd9ayhLVzQ/VGx6+LfR31U40a/r6ZZK4rt8V0oeDq5tRDjpKWPK4tw+3KTXTserGoiicZk3YV7yQk+rXi00L4Qy3F569k8yvh4k35Aprejkws3BnyQ4K97H7+18l2Wj84YXO3ZiR6dZchvU21mCkVN12ipcSAvsRi5K2gNaICvnB451xCcqqxsTut/sTBnb33cBO2KrQWWqBSsLPp/iYEz/+Wn50ImnRW+STVI+W8oIkRVzmR4AsZHj8Yeak8YZT6er/9B2xsUW71UJwDM02/e8Mgu7BougqVtNHLSAtnQCGOTRaZE02reU8GwhoYDZsW3XBL1/YRS6zKT48FI6w9FlGw3jWS73pJ0iHY/J13zUEKqAL1VCBExiQwhQZ9EKWQFJYVg+78iHu3OTKq7gOvcWhDMz71LoUXpqXjefeTHPOxW2RkDcy/yiJyZguwGZ2/l1UdbQQnSVe5scXN2mzSxVbb1+ge7A6HUI5h912bSOTWEu32imDPA7ZjxIkolRy8mSR+MhfV4jzM8Z9oWzhyYog48KVlE20CqkxxAAmcuPiGLkn0FQdlwfbTOi6NI+ZbpTYb7+t4P7CkPqLN0bzXYPZd/eycXoRPgU+iS2Vdk5/p3045Gd7+FgcO/zQeJvVu4+J4IO5/dY4pM+aA0a+ZcvS1z6wUJi6/BYWNVYI/3A3vWT0nNm1AcuFhN53/8vMde8LzUunrnkhD1nBm41ze+cZa4nI2Sez+7Yn5zT/w7lIqU0zwwRX9FRzlVM+GtMCcI6ZhMuIIokRsqzfR0ze9SRZI7HCexrO3SNCpnnmf/kiyorXNgceWyJk3jcGhVh9Bt4=
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        argocd.argoproj.io/secret-type: repo-creds
+      name: argocd-repo-creds
+      namespace: argocd
