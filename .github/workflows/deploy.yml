@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Build and Deploy to K8s
 
 on:
   push:
@@ -9,11 +9,11 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -26,96 +26,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Deploy to EC2 via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # 1. Exportar el KUBECONFIG explícitamente
-            export KUBECONFIG=/home/ec2-user/.kube/config
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
 
-            # 2. Descargar los manifiestos actualizados desde GitHub
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o api.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/api.yaml
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o db.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/db.yaml
+  deploy:
+    needs: build-and-push # Solo se ejecuta si la imagen se ha construido bien
+    runs-on: ubuntu-latest
 
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o ingress.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/ingress.yaml
-
-            # Descargar el secreto cifrado
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o postgres-sealed-secret.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/postgres-sealed-secret.yaml
-
-            # Descargar Grafana y Prometheus
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o grafana.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/grafana.yaml
-
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o prometheus.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/prometheus.yaml
-
-            # Descargar el Ingress de ArgoCD
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o argocd-ingress.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/argocd-ingress.yaml
-
-            # Descargar el SealedSecret de ArgoCD
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o argocd-repo-creds-sealed.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/argocd-repo-creds-sealed.yaml
-
-
-            # Descargar y aplicar la App de ArgoCD
-            curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                 -H "Accept: application/vnd.github.v3.raw" \
-                 -o argocd-app.yaml \
-                 https://api.github.com/repos/rody86/task-api/contents/k8s/argocd-app.yaml
-
-            # 3. Eliminar pods huérfanos antes de aplicar
-            # Forzar la recreación del SealedSecret para evitar bloqueos de propiedad
-            kubectl delete sealedsecret postgres-secret --ignore-not-found=true
-
-            # 4. Aplicar los cambios en Kubernetes
-            kubectl apply -f postgres-sealed-secret.yaml
-
-            # Pequeña pausa para dar tiempo al controlador a descifrar
-            sleep 6 
-
-            kubectl apply -f db.yaml
-            kubectl apply -f api.yaml
-            kubectl apply -f ingress.yaml
-            kubectl apply -f grafana.yaml
-            kubectl apply -f prometheus.yaml
-            kubectl apply -f argocd-ingress.yaml
-            kubectl apply -f argocd-repo-creds-sealed.yaml
-            kubectl apply -f argocd-app.yaml
-
-            # Parchear ArgoCD para que sepa que vive en /argocd
-            kubectl patch configmap argocd-cmd-params-cm -n argocd -p '{"data": {"server.rootpath": "/argocd"}}' || true
-            kubectl patch configmap argocd-cmd-params-cm -n argocd -p '{"data": {"server.basehref": "/argocd"}}' || true
-
-            # Reiniciar ArgoCD para aplicar el parche (solo si es necesario)
-            kubectl rollout restart deployment argocd-server -n argocd
-
-            # 5. Forzar la actualización de la imagen (Rolling Update)
-            kubectl rollout restart deployment/task-api
-            
-            # 6. Mensaje final (sin esperar el timeout)
-            echo "Despliegue aplicado."
+    steps:
+      - name: Trigger ArgoCD Sync
+        run: |
+          # Hacemos una petición a la API de ArgoCD para forzar la sincronización
+          # (Así no tenemos que esperar los 3 minutos del auto-sync)
+          curl -s -X POST \
+            "http://${{ secrets.EC2_HOST }}:8080/api/v1/applications/task-api/sync" \
+            -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"revision":"HEAD"}'

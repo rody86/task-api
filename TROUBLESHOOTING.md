@@ -51,6 +51,24 @@ Este documento detalla los desafíos técnicos, errores de configuración y bloq
 *   **Causa:** La API (Task-API) tenía un Ingress en la ruta `/`, por lo que Traefik enviaba todas las peticiones a la API.
 *   **Solución:** Se configuró ArgoCD para vivir en el subdirectorio `/argocd` (`server.rootpath`) y se modificó su Ingress.
 
+## 6. GitOps, Secretos y el "Infierno" de ArgoCD
+
+*   **Problema:** `ComparisonError: rpc error: code = Unknown desc = failed to list refs: error creating SSH agent: "SSH_AUTH_SOCK not-specified"`.
+*   **Causa:** ArgoCD no podía clonar el repositorio. Aunque la llave SSH era correcta (se comprobó haciendo un `git ls-remote` manual exitoso desde dentro del pod), la versión de ArgoCD (3.6.2) tiene un bug conocido al procesar llaves `ed25519` o al montar secretos de tipo `repo-creds` con el campo `sshPrivateKey`.
+*   **Solución:** Se estandarizó el secreto utilizando una llave RSA (`ssh-keygen -t rsa -b 4096`), se creó el secreto con `kubectl create secret generic --from-file` y se etiquetó correctamente como `repo-creds`. Además, se forzó un `hard refresh` de la `Application` para limpiar la caché de errores.
+
+*   **Problema:** `Resource "argocd-repo-creds" already exists and is not managed by SealedSecret`.
+*   **Causa:** Conflicto de propiedad. Se había creado un secreto manual con `kubectl create secret` para pruebas, y el controlador de Sealed Secrets se negaba a sobrescribirlo con el `SealedSecret` del repositorio Git.
+*   **Solución:** Se eliminó el secreto manual (`kubectl delete secret`) para que Sealed Secrets pudiera tomar el control y crear el secreto desde cero a partir del archivo cifrado.
+
+*   **Problema:** El `SealedSecret` se aplicaba correctamente, pero el secreto subyacente nunca se creaba (ArgoCD seguía fallando).
+*   **Causa:** El archivo `argocd-repo-creds-sealed.yaml` en el repositorio había sido cifrado con la clave pública de un clúster de Kubernetes anterior (antes de hacer `terraform destroy`). El controlador actual no podía descifrarlo con su clave privada.
+*   **Solución:** Se extrajo el nuevo certificado público (`kubeseal --fetch-cert`), se volvió a cifrar el secreto en local con `kubeseal` y se aplicó el nuevo `SealedSecret`. **Lección aprendida:** En infraestructuras efímeras, los secretos cifrados deben regenerarse cada vez que se recrea el clúster.
+
+*   **Problema:** Error `404 Not Found` al intentar acceder a la interfaz web de ArgoCD en la ruta `/argocd` a través del Ingress (Traefik).
+*   **Causa:** Bug confirmado en ArgoCD v3.6.x. Al configurar un subdirectorio (`server.rootpath: /argocd`), la etiqueta `<base href>` interna no se reescribe correctamente, haciendo que el navegador no encuentre los archivos JavaScript y CSS.
+*   **Solución:** Para evitar el bug, se configuró ArgoCD para vivir en la raíz (`/`) y se accedió a la interfaz mediante un túnel seguro (`kubectl port-forward svc/argocd-server -n argocd 8080:80`), saltándose el Ingress.
+
 ---
 **Conclusión:** 
 *"En DevOps, el 80% del tiempo se dedica a entender por qué la red no enruta, por qué falla un secreto o por qué Linux ha matado un proceso. La resiliencia y el diagnóstico metódico son las herramientas más valiosas."*
