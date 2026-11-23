@@ -113,7 +113,7 @@ resource "aws_instance" "app_server" {
   }
 
   root_block_device {
-    volume_size = 20 # 20 GB de disco
+    volume_size = 30 # 30 GB de disco
     volume_type = "gp3"
   }
 }

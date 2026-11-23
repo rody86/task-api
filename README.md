@@ -49,3 +49,17 @@ El flujo de trabajo está diseñado para ser 100% automatizado:
    cd terraform
    terraform init
    terraform apply
+
+## 📸 Capturas del Proyecto
+
+### GitOps con ArgoCD
+Aquí se muestra la aplicación sincronizada y saludable, gestionada automáticamente desde el repositorio.
+![ArgoCD](docs/argocd.png)
+
+### Observabilidad con Grafana
+Dashboard mostrando las métricas de tráfico de la API, capturadas por Prometheus.
+![Grafana](docs/grafana.png)
+
+### Pipeline de CI/CD
+GitHub Actions construyendo la imagen y desplegando automáticamente.
+![GitHub Actions](docs/github-actions.png)
