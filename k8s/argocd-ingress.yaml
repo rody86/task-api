@@ -4,10 +4,11 @@ metadata:
   name: argocd-server-ingress
   namespace: argocd
 spec:
+  ingressClassName: traefik
   rules:
     - http:
         paths:
-          - path: /argocd
+          - path: /
             pathType: Prefix
             backend:
               service:
